@@ -1,220 +1,193 @@
 # Data Pipeline Skeleton
 
-A minimal **real-time data pipeline** built using:
+A minimal real-time data pipeline built with:
 
--   Apache Kafka
--   Apache Flink (PyFlink)
--   Python Producer
--   Docker
--   VS Code Dev Containers
+- Apache Kafka
+- Apache Flink (PyFlink)
+- Python producer
+- Docker Compose
+- VS Code Dev Containers
 
 Architecture:
 
-Producer → Kafka Topic → Flink Streaming Job → Console Output
-
-------------------------------------------------------------------------
+`Producer -> Kafka topic -> Flink streaming job -> Console output`
 
 ## Project Structure
 
-    data-pipeline-skeleton
-    │
-    ├── producer/
-    │   └── producer.py
-    │
-    ├── flink-jobs/
-    │   └── kafka_consumer.py
-    │
-    ├── docker-compose.yml
-    ├── .devcontainer/
-    └── README.md
+```text
+data-pipeline-skeleton
+├── .devcontainer/
+│   └── devcontainer.json
+├── docker/
+│   ├── docker-compose.yml
+│   └── flink/
+│       ├── Dockerfile
+│       └── requirements.txt
+├── flink-jars/
+│   ├── flink-connector-kafka-3.0.2-1.18.jar
+│   └── kafka-clients-3.4.0.jar
+├── flink-jobs/
+│   └── kafka_consumer.py
+├── producer/
+│   └── producer.py
+└── README.md
+```
 
-------------------------------------------------------------------------
+## What This Project Does
+
+1. Starts Kafka + Zookeeper with Docker.
+2. Starts a Flink JobManager and TaskManager with a custom image.
+3. Sends JSON events to Kafka topic `test-topic` from `producer/producer.py`.
+4. Consumes events from Kafka in `flink-jobs/kafka_consumer.py` and prints them.
 
 ## Prerequisites
 
-Install:
+- Docker Desktop
+- VS Code
+- Dev Containers extension
+- Git
 
--   Docker Desktop
--   VS Code
--   Dev Containers extension
--   Git
+Verify:
 
-Verify installation:
-
-``` bash
+```bash
 docker --version
 git --version
 ```
 
-------------------------------------------------------------------------
+## Start Infrastructure
 
-## Clone Repository
-
-``` bash
-git clone https://github.com/<your-username>/data-pipeline-skeleton.git
-cd data-pipeline-skeleton
-```
-
-------------------------------------------------------------------------
-
-## Start Kafka Infrastructure
-
-``` bash
+```bash
 cd docker
 docker compose up -d --build
-```
-
-Verify containers:
-
-``` bash
 docker ps
 ```
 
-Access Flink UI:
-```http://localhost:8081```
-------------------------------------------------------------------------
+Flink UI:
 
-## Kafka Commands
+`http://localhost:8081`
+
+## Kafka Setup
 
 Enter Kafka container:
 
-``` bash
+```bash
 docker exec -it kafka bash
 ```
 
 List topics:
 
-``` bash
+```bash
 kafka-topics --list --bootstrap-server localhost:9092
 ```
 
 Create topic (if needed):
 
-``` bash
-kafka-topics --create --topic test-topic --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+```bash
+kafka-topics --create \
+  --topic test-topic \
+  --bootstrap-server localhost:9092 \
+  --partitions 1 \
+  --replication-factor 1
 ```
 
-Consume messages:
+Consume messages manually (optional):
 
-``` bash
-kafka-console-consumer --topic test-topic --bootstrap-server localhost:9092 --from-beginning
+```bash
+kafka-console-consumer \
+  --topic test-topic \
+  --bootstrap-server localhost:9092 \
+  --from-beginning
 ```
 
-------------------------------------------------------------------------
+## Dev Container Workflow
 
-## Open Dev Container
-
-In VS Code:
-
-    Dev Containers: Reopen in Container
+In VS Code: `Dev Containers: Reopen in Container`
 
 Workspace path inside container:
 
-    /workspace
+`/workspace`
 
-------------------------------------------------------------------------
+Quick Kafka connectivity check from dev container:
 
-## Networking Kafka from Dev Container
-
-Test connectivity:
-
-``` bash
+```bash
 nc -zv host.docker.internal 9092
 ```
 
-Expected:
+## Run Flink Streaming Job
 
-    Connection to host.docker.internal 9092 succeeded
+Recommended (inside Flink JobManager container):
 
-------------------------------------------------------------------------
-
-
-
-## Run Flink Job
-
+```bash
 docker exec -it flink-jobmanager bash
-
-Run job:
-
 flink run -py /workspace/flink-jobs/kafka_consumer.py
-
-## Test Run Flink Streaming Job
-
-Inside dev container:
-
-``` bash
-python flink-jobs/kafka_consumer.py
 ```
-------------------------------------------------------------------------
+
+Note: Running `python flink-jobs/kafka_consumer.py` directly from the dev container can be useful for local checks, but cluster execution should use `flink run`.
 
 ## Run Producer
 
-Open another terminal:
+From another terminal (host or dev container):
 
-``` bash
+```bash
 python producer/producer.py
 ```
 
-------------------------------------------------------------------------
+Producer sends 5 events:
 
-## Expected Output
+```text
+{"event_id": 0, "event_type": "test", "value": 0}
+{"event_id": 1, "event_type": "test", "value": 90}
+...
+```
 
-Producer:
+## View Flink Output
 
-    sent: {'event_id': 0, 'event_type': 'test', 'value': 0}
-    sent: {'event_id': 1, 'event_type': 'test', 'value': 100}
-
-Flink:
-
-    {"event_id": 0, "event_type": "test", "value": 0}
-    {"event_id": 1, "event_type": "test", "value": 100}
-
-------------------------------------------------------------------------
-
-
-## View Output
-
+```bash
 docker logs -f flink-taskmanager
+```
 
-or
+Or via Flink UI:
 
-Flink UI → TaskManagers → Logs
+`Flink UI -> TaskManagers -> Logs`
 
-Example:
+Expected style of logs:
 
-EVENT: hello
-1> hello
+```text
+EVENT: {"event_id":0,"event_type":"test","value":0}
+1> {"event_id":0,"event_type":"test","value":0}
+```
 
-EVENT: order_123
-1> order_123
+## Deploy Model Used Here
 
+This repository uses local Docker deployment:
 
-## Debugging
+1. `docker/docker-compose.yml` orchestrates Kafka, Zookeeper, and Flink services.
+2. `docker/flink/Dockerfile` builds the Flink image with Python + Java dependencies.
+3. Source code is bind-mounted to `/workspace` in Flink containers for fast iteration.
 
-Check Kafka logs:
+## Troubleshooting
 
-``` bash
+Kafka logs:
+
+```bash
 docker logs kafka
 ```
 
-Restart infrastructure:
+Restart everything:
 
-``` bash
+```bash
+cd docker
 docker compose down
-docker compose up -d
+docker compose up -d --build
 ```
-
-------------------------------------------------------------------------
 
 ## Future Improvements
 
--   Schema validation
--   Dead Letter Queue (DLQ)
--   Flink checkpointing
--   Window aggregations
--   Storage sinks (S3 / Iceberg / Database)
-
-------------------------------------------------------------------------
+- Schema validation
+- Dead Letter Queue (DLQ)
+- Flink checkpointing
+- Window aggregations
+- Storage sinks (S3 / Iceberg / database)
 
 ## License
 
