@@ -41,3 +41,12 @@ Python + PyFlink code
 Kafka (Docker)
    ↓
 Flink (Docker)
+
+apt update
+apt install -y python3 python3-pip
+ln -s /usr/bin/python3 /usr/bin/python
+python --version
+apt install -y default-jdk python3 python3-pip
+export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+echo $JAVA_HOME
+ls $JAVA_HOME/include

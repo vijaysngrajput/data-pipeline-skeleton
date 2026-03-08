@@ -60,7 +60,8 @@ cd data-pipeline-skeleton
 ## Start Kafka Infrastructure
 
 ``` bash
-docker compose up -d
+cd docker
+docker compose up -d --build
 ```
 
 Verify containers:
@@ -69,6 +70,8 @@ Verify containers:
 docker ps
 ```
 
+Access Flink UI:
+```http://localhost:8081```
 ------------------------------------------------------------------------
 
 ## Kafka Commands
@@ -125,14 +128,23 @@ Expected:
 
 ------------------------------------------------------------------------
 
-## Run Flink Streaming Job
+
+
+## Run Flink Job
+
+docker exec -it flink-jobmanager bash
+
+Run job:
+
+flink run -py /workspace/flink-jobs/kafka_consumer.py
+
+## Test Run Flink Streaming Job
 
 Inside dev container:
 
 ``` bash
 python flink-jobs/kafka_consumer.py
 ```
-
 ------------------------------------------------------------------------
 
 ## Run Producer
@@ -158,6 +170,24 @@ Flink:
     {"event_id": 1, "event_type": "test", "value": 100}
 
 ------------------------------------------------------------------------
+
+
+## View Output
+
+docker logs -f flink-taskmanager
+
+or
+
+Flink UI → TaskManagers → Logs
+
+Example:
+
+EVENT: hello
+1> hello
+
+EVENT: order_123
+1> order_123
+
 
 ## Debugging
 

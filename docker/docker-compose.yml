@@ -26,19 +26,23 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
   jobmanager:
-    image: flink:1.18
+    build: ./flink
     container_name: flink-jobmanager
     ports:
       - "8081:8081"
     command: jobmanager
+    volumes:
+      - ..:/workspace
     environment:
       JOB_MANAGER_RPC_ADDRESS: jobmanager
 
   taskmanager:
-    image: flink:1.18
+    build: ./flink
     container_name: flink-taskmanager
     depends_on:
       - jobmanager
     command: taskmanager
+    volumes:
+      - ..:/workspace
     environment:
       JOB_MANAGER_RPC_ADDRESS: jobmanager
