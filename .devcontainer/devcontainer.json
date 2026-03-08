@@ -1,0 +1,13 @@
+{
+  "name": "flink-dev",
+  "image": "mcr.microsoft.com/devcontainers/python:3.10-bullseye",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "remoteUser": "root",
+
+  "containerEnv": {
+    "JAVA_HOME": "/usr/lib/jvm/java-11-openjdk-arm64"
+  },
+
+  "postCreateCommand": "rm -f /etc/apt/sources.list.d/yarn.list && apt-get update && apt-get install -y default-jdk && pip install kafka-python apache-flink==1.18.0"
+}
