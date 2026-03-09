@@ -8,9 +8,24 @@ A minimal real-time data pipeline built with:
 - Docker Compose
 - VS Code Dev Containers
 
-Architecture:
+Current Architecture:
 
 `Producer -> Kafka topic -> Flink streaming job -> Console output`
+
+Target Architectures:
+```
+                    [DLQ LAYERS]    [Schema Registry / checkpoint / validation / DLQ LAYERS]       [DATA FORMATTING]
+APP  >>>         STREAMING SERVICE               >>> PROCESS SERVICE             >>> STATELESS COMPUTE >>> DASHBOARD SERVICE
+                                |                    |
+                                |                    |
+                                |                    |              [Backfill / Idempotent Writes]
+                        Streaming Sink               |________  >>> DISTRIBUTE COMPUTE SERVICE >>> STORAGE SERVICE >>> DATA WAREHOUSING SERVICE >>> BI TEAM
+                                |                    |
+                                |                    |
+                                |                    |
+                                |                    |
+                        Storage Service         Storage Service
+```
 
 ## Project Structure
 
