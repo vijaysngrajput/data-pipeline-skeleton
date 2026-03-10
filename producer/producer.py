@@ -29,7 +29,8 @@ for i in range(event_count):
     event: Dict[str, Any] = {
         "event_id": i,
         "event_type": "test",
-        "value": i * 90
+        "value": i * 90,
+        "another_new": 100
     }
 
     if backend is None:

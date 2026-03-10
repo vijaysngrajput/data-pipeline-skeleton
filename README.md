@@ -42,7 +42,8 @@ data-pipeline-skeleton
 │   ├── flink-connector-kafka-3.0.2-1.18.jar
 │   └── kafka-clients-3.4.0.jar
 ├── flink-jobs/
-│   └── kafka_consumer.py
+│   ├── kafka_consumer.py
+│   └── schema_registry.json
 ├── producer/
 │   └── producer.py
 └── README.md
@@ -53,7 +54,10 @@ data-pipeline-skeleton
 1. Starts Kafka + Zookeeper with Docker.
 2. Starts a Flink JobManager and TaskManager with a custom image.
 3. Sends JSON events to Kafka topic `test-topic` from `producer/producer.py`.
-4. Consumes events from Kafka in `flink-jobs/kafka_consumer.py` and prints them.
+4. Process service consumes events from Kafka in `flink-jobs/kafka_consumer.py`.
+5. Process service validates events against a schema registry (`flink-jobs/schema_registry.json`).
+6. Valid events are emitted to storage (`/workspace/storage/processed/processed_events.jsonl`).
+7. Invalid events are emitted to process DLQ storage (`/workspace/storage/dlq/process_dlq_events.jsonl`).
 
 ## Prerequisites
 
@@ -134,10 +138,55 @@ Recommended (inside Flink JobManager container):
 
 ```bash
 docker exec -it flink-jobmanager bash
-flink run -py /workspace/flink-jobs/kafka_consumer.py
+flink run   -py /workspace/flink-jobs/kafka_consumer.py   -pyfs /workspace/flink-jobs
 ```
 
 Note: Running `python flink-jobs/kafka_consumer.py` directly from the dev container can be useful for local checks, but cluster execution should use `flink run`.
+
+### Process Service Configuration
+
+Set env vars before `flink run` (or pass through Compose):
+
+```bash
+export SOURCE_BACKEND=kafka
+export STREAM_NAME=test-topic
+export KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:9092
+export KAFKA_GROUP_ID=flink-group
+export FLINK_PARALLELISM=1
+
+export ENABLE_CHECKPOINTING=true
+export CHECKPOINT_INTERVAL_MS=10000
+
+export SCHEMA_REGISTRY_DIR=/workspace/flink-jobs/schema_registry
+export SCHEMA_DATASET=default_event
+export SCHEMA_BOOTSTRAP_FILE=/workspace/flink-jobs/schema_registry.json
+export SCHEMA_BOOTSTRAP_NAME=default_event_v1
+
+# earliest | latest | committed | specific
+export KAFKA_START_MODE=earliest
+# used only when KAFKA_START_MODE=specific (format: "0:10,1:20")
+export KAFKA_START_OFFSETS=
+
+export PROCESSED_OUTPUT_PATH=/workspace/storage/processed/processed_events.jsonl
+export PROCESS_DLQ_OUTPUT_PATH=/workspace/storage/dlq/process_dlq_events.jsonl
+export STORAGE_BUCKET_FORMAT=yyyy-MM-dd--HH
+```
+
+Offset behavior:
+- `earliest`: consume from earliest available offsets
+- `latest`: consume only new events after job start
+- `committed`: resume from committed consumer-group offsets
+- `specific`: start from exact partition offsets via `KAFKA_START_OFFSETS`
+
+Source backend:
+- `SOURCE_BACKEND=kafka`: uses Kafka source implementation
+- `SOURCE_BACKEND=kinesis`: reserved extension point (not implemented yet)
+
+Schema registry behavior:
+- registry is directory-based: `SCHEMA_REGISTRY_DIR/<dataset>/vN.json`
+- process service reads latest schema version by default
+- if new fields arrive and schema allows additional fields, it writes a new schema version
+- emitted records include `schema_dataset` + `schema_version` + full effective schema
 
 ## Run Producer
 
@@ -168,9 +217,16 @@ Or via Flink UI:
 Expected style of logs:
 
 ```text
-EVENT: {"event_id":0,"event_type":"test","value":0}
-1> {"event_id":0,"event_type":"test","value":0}
+{"timestamp_utc":"...","source_stream":"test-topic","schema_name":"default_event_v1","event":{"event_id":0,"event_type":"test","value":0}}
 ```
+
+Processed output file:
+
+`/workspace/storage/processed/processed_events.jsonl`
+
+Process DLQ output file:
+
+`/workspace/storage/dlq/process_dlq_events.jsonl`
 
 ## Deploy Model Used Here
 
@@ -198,9 +254,6 @@ docker compose up -d --build
 
 ## Future Improvements
 
-- Schema validation
-- Dead Letter Queue (DLQ)
-- Flink checkpointing
 - Window aggregations
 - Storage sinks (S3 / Iceberg / database)
 

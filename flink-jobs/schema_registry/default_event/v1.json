@@ -1,0 +1,14 @@
+{
+  "allow_additional_fields": true,
+  "constraints": {
+    "event_type": [
+      "test"
+    ]
+  },
+  "optional": {},
+  "required": {
+    "event_id": "int",
+    "event_type": "str",
+    "value": "int"
+  }
+}

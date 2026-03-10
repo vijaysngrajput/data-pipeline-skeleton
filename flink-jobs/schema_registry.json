@@ -1,0 +1,16 @@
+{
+  "default_event_v1": {
+    "required": {
+      "event_id": "int",
+      "event_type": "str",
+      "value": "int"
+    },
+    "optional": {},
+    "allow_additional_fields": true,
+    "constraints": {
+      "event_type": [
+        "test"
+      ]
+    }
+  }
+}
