@@ -9,6 +9,7 @@ from pyflink.datastream.connectors.kafka import (
     KafkaSource,
     KafkaTopicPartition,
 )
+from pyflink.java_gateway import get_gateway
 
 from process_config import ProcessServiceConfig
 
@@ -29,14 +30,27 @@ def build_offsets_initializer(
     topic: str,
     start_mode: str,
     raw_offsets: str,
+    committed_offset_reset: str,
 ) -> KafkaOffsetsInitializer:
+    def committed_offsets_with_reset(reset_mode: str) -> KafkaOffsetsInitializer:
+        gateway = get_gateway()
+        j_offsets_initializer = (
+            gateway.jvm.org.apache.flink.connector.kafka.source.enumerator.initializer
+            .OffsetsInitializer
+        )
+        reset_value = reset_mode.strip().upper()
+        j_reset_strategy = gateway.jvm.org.apache.kafka.clients.consumer.OffsetResetStrategy.valueOf(
+            reset_value
+        )
+        return KafkaOffsetsInitializer(j_offsets_initializer.committedOffsets(j_reset_strategy))
+
     mode = start_mode.strip().lower()
     if mode == "earliest":
         return KafkaOffsetsInitializer.earliest()
     if mode == "latest":
         return KafkaOffsetsInitializer.latest()
     if mode == "committed":
-        return KafkaOffsetsInitializer.committed_offsets()
+        return committed_offsets_with_reset(committed_offset_reset)
     if mode == "specific":
         if not raw_offsets.strip():
             raise ValueError("KAFKA_START_OFFSETS is required when KAFKA_START_MODE=specific")
@@ -63,16 +77,18 @@ class KafkaSourceBackend(SourceBackend):
             cfg.stream_name,
             cfg.start_mode,
             cfg.start_offsets,
+            cfg.committed_offset_reset,
         )
-        source = (
+        source_builder = (
             KafkaSource.builder()
             .set_bootstrap_servers(cfg.bootstrap_servers)
             .set_topics(cfg.stream_name)
             .set_group_id(cfg.group_id)
             .set_starting_offsets(offsets_initializer)
             .set_value_only_deserializer(SimpleStringSchema())
-            .build()
         )
+
+        source = source_builder.build()
         return env.from_source(source, WatermarkStrategy.no_watermarks(), "Kafka Source")
 
 

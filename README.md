@@ -1,5 +1,8 @@
 # Data Pipeline Skeleton
 
+Project documentation for fresh users and file-by-file roles:
+- `/workspace/info/README.md`
+
 A minimal real-time data pipeline built with:
 
 - Apache Kafka
@@ -138,10 +141,23 @@ Recommended (inside Flink JobManager container):
 
 ```bash
 docker exec -it flink-jobmanager bash
-flink run   -py /workspace/flink-jobs/kafka_consumer.py   -pyfs /workspace/flink-jobs
+export SOURCE_BACKEND=kafka
+export STREAM_NAME=test-topic
+export KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:9092
+export KAFKA_GROUP_ID=flink-group
+export KAFKA_START_MODE=committed
+export ENABLE_CHECKPOINTING=true
+export SCHEMA_REGISTRY_DIR=/workspace/flink-jobs/schema_registry
+export SCHEMA_DATASET=default_event
+/workspace/flink-jobs/run_process_job.sh
 ```
 
 Note: Running `python flink-jobs/kafka_consumer.py` directly from the dev container can be useful for local checks, but cluster execution should use `flink run`.
+If you want to ignore checkpoint restore and start fresh, run:
+
+```bash
+FORCE_FRESH_START=true /workspace/flink-jobs/run_process_job.sh
+```
 
 ### Process Service Configuration
 
@@ -156,6 +172,14 @@ export FLINK_PARALLELISM=1
 
 export ENABLE_CHECKPOINTING=true
 export CHECKPOINT_INTERVAL_MS=10000
+export CHECKPOINT_STORAGE_DIR=file:///workspace/flink-checkpoints
+export CHECKPOINT_TIMEOUT_MS=60000
+export MIN_PAUSE_BETWEEN_CHECKPOINTS_MS=3000
+export MAX_CONCURRENT_CHECKPOINTS=1
+export TOLERABLE_CHECKPOINT_FAILURES=3
+export EXTERNALIZED_CHECKPOINT_CLEANUP=RETAIN_ON_CANCELLATION
+export RESTART_ATTEMPTS=10
+export RESTART_DELAY_MS=10000
 
 export SCHEMA_REGISTRY_DIR=/workspace/flink-jobs/schema_registry
 export SCHEMA_DATASET=default_event
@@ -163,19 +187,21 @@ export SCHEMA_BOOTSTRAP_FILE=/workspace/flink-jobs/schema_registry.json
 export SCHEMA_BOOTSTRAP_NAME=default_event_v1
 
 # earliest | latest | committed | specific
-export KAFKA_START_MODE=earliest
+export KAFKA_START_MODE=committed
 # used only when KAFKA_START_MODE=specific (format: "0:10,1:20")
 export KAFKA_START_OFFSETS=
+# used when KAFKA_START_MODE=committed and no committed offsets exist: latest | earliest | none
+export KAFKA_COMMITTED_OFFSET_RESET=latest
 
 export PROCESSED_OUTPUT_PATH=/workspace/storage/processed/processed_events.jsonl
 export PROCESS_DLQ_OUTPUT_PATH=/workspace/storage/dlq/process_dlq_events.jsonl
-export STORAGE_BUCKET_FORMAT=yyyy-MM-dd--HH
+export STORAGE_BUCKET_FORMAT=yyyyMMddHHmmss
 ```
 
 Offset behavior:
 - `earliest`: consume from earliest available offsets
 - `latest`: consume only new events after job start
-- `committed`: resume from committed consumer-group offsets
+- `committed`: resume from committed consumer-group offsets (fallback via `KAFKA_COMMITTED_OFFSET_RESET` when missing)
 - `specific`: start from exact partition offsets via `KAFKA_START_OFFSETS`
 
 Source backend:

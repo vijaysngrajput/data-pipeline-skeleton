@@ -1,7 +1,8 @@
 from functools import partial
 
-from pyflink.common import Types
+from pyflink.common import RestartStrategies, Types
 from pyflink.datastream import StreamExecutionEnvironment
+from pyflink.datastream.checkpoint_config import ExternalizedCheckpointCleanup
 
 from process_config import load_config
 from process_sinks import create_jsonl_file_sink
@@ -20,8 +21,32 @@ def main() -> None:
 
     env = StreamExecutionEnvironment.get_execution_environment()
     env.set_parallelism(cfg.parallelism)
+    env.set_restart_strategy(
+        RestartStrategies.fixed_delay_restart(
+            cfg.restart_attempts,
+            cfg.restart_delay_ms,
+        )
+    )
+
     if cfg.enable_checkpointing:
         env.enable_checkpointing(cfg.checkpoint_interval_ms)
+        checkpoint_config = env.get_checkpoint_config()
+        checkpoint_config.set_checkpoint_storage_dir(cfg.checkpoint_storage_dir)
+        checkpoint_config.set_checkpoint_timeout(cfg.checkpoint_timeout_ms)
+        checkpoint_config.set_min_pause_between_checkpoints(
+            cfg.min_pause_between_checkpoints_ms
+        )
+        checkpoint_config.set_max_concurrent_checkpoints(cfg.max_concurrent_checkpoints)
+        checkpoint_config.set_tolerable_checkpoint_failure_number(
+            cfg.tolerable_checkpoint_failures
+        )
+
+        cleanup_mode = (
+            ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION
+            if cfg.externalized_checkpoint_cleanup == "RETAIN_ON_CANCELLATION"
+            else ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION
+        )
+        checkpoint_config.enable_externalized_checkpoints(cleanup_mode)
 
     source_backend = create_source_backend(cfg.source_backend)
     raw_stream = source_backend.build_stream(env, cfg)
