@@ -1,0 +1,29 @@
+# Exclude files ending with .abc pattern
+*.abc
+
+# Exclude files/dirs starting with __
+__*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.log
+.env
+.env.local
