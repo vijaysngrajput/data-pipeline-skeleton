@@ -4,6 +4,7 @@ from typing import Any, Dict
 
 from process_schema import (
     build_effective_schema,
+    build_schema_id,
     ensure_seed_schema,
     persist_evolved_schema_if_needed,
     resolve_schema_version,
@@ -31,9 +32,10 @@ def process_raw_event(
             "dlq": {
                 "timestamp_utc": now_utc,
                 "source_stream": stream_name,
-                "schema_dataset": dataset,
+                "schema_id": None,
                 "reason": f"json_parse_error:{err}",
                 "raw_event": raw,
+                "parsed_event": None,
             },
         }
         return json.dumps(envelope, separators=(",", ":"))
@@ -56,7 +58,7 @@ def process_raw_event(
             "dlq": {
                 "timestamp_utc": now_utc,
                 "source_stream": stream_name,
-                "schema_dataset": dataset,
+                "schema_id": None,
                 "reason": resolution_mode,
                 "raw_event": raw,
                 "parsed_event": payload,
@@ -77,13 +79,13 @@ def process_raw_event(
     active_schema = effective_schema
     valid, reason = validate_event(payload, active_schema)
     if not valid:
+        schema_id = build_schema_id(dataset, persisted_version)
         envelope = {
             "valid": False,
             "dlq": {
                 "timestamp_utc": now_utc,
                 "source_stream": stream_name,
-                "schema_dataset": dataset,
-                "schema_version": persisted_version,
+                "schema_id": schema_id,
                 "reason": reason,
                 "raw_event": raw,
                 "parsed_event": payload,
@@ -94,17 +96,10 @@ def process_raw_event(
     processed_event = {
         "timestamp_utc": now_utc,
         "source_stream": stream_name,
-        "schema_dataset": dataset,
-        "schema_version": persisted_version,
-        "schema_resolution": resolution_mode,
+        "schema_id": build_schema_id(dataset, persisted_version),
+        "schema_resolved_from": resolution_mode,
         "schema_evolved": schema_evolved,
-        "schema": {
-            "dataset": dataset,
-            "version": persisted_version,
-            "definition": active_schema,
-            "evolved_fields": evolved_fields,
-        },
-        "event": payload,
+        "content": payload,
     }
     envelope = {"valid": True, "processed": processed_event}
     return json.dumps(envelope, separators=(",", ":"))

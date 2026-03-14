@@ -8,6 +8,14 @@ from typing import Any, Dict, List, Optional, Tuple
 VERSION_RE = re.compile(r"^v(\d+)\.json$")
 
 
+def build_schema_id(dataset: str, version: int) -> str:
+    """Build a unique schema identifier from dataset and version.
+    
+    Example: build_schema_id("default_event", 3) -> "default_event_v3"
+    """
+    return f"{dataset}_v{version}"
+
+
 def is_type_match(value: Any, expected: str) -> bool:
     mapping = {
         "int": int,

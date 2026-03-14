@@ -30,7 +30,8 @@ for i in range(event_count):
         "event_id": i,
         "event_type": "test",
         "value": i * 90,
-        "another_new": 100
+        "another_new": 100,
+        "yet_another": i * 8
     }
 
     if backend is None:
