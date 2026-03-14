@@ -1,0 +1,19 @@
+{
+  "allow_additional_fields": true,
+  "constraints": {
+    "event_type": [
+      "test"
+    ]
+  },
+  "optional": {
+    "another_new": "int",
+    "dimsum": "str",
+    "new_field": "int",
+    "yet_another": "int"
+  },
+  "required": {
+    "event_id": "int",
+    "event_type": "str",
+    "value": "int"
+  }
+}

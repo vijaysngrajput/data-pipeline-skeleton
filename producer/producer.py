@@ -31,7 +31,8 @@ for i in range(event_count):
         "event_type": "test",
         "value": i * 90,
         "another_new": 100,
-        "yet_another": i * 8
+        "yet_another": i * 8,
+        "dimsum": "DIM_SUM"
     }
 
     if backend is None:
